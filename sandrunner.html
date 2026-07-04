@@ -529,6 +529,7 @@ function resetPlayer(x){
  P.x=x;P.y=groundY(x);P.vx=240;P.vy=0;P.speed=260;P.ground=true;P.rot=Math.atan(groundSlope(x));
  P.av=0;P.airT=0;P.spin=0;P.stumble=0;P.carveQ=0;P.boostE=0.6;P.boostT=0;P.chargeQ=0;P.charging=false;
  P.hp=1;P.heat=0.22;P.onWater=false;P.inPit=false;P.slope=P.rot;P.inv=0;
+ P.anchX=P.x-10;P.anchY=P.y-38;
  initScarf();
 }
 function land(gy){
@@ -670,7 +671,7 @@ function stepPlayer(dt){
 }
 function stepScarf(dt){
  const crouch=P.carveQ;
- const ax=P.x-Math.cos(P.rot)*13,ay=P.y-34+crouch*8;
+ const ax=(P.anchX||P.x-10),ay=(P.anchY||P.y-34+crouch*8);
  SCX[0]=ax;SCY[0]=ay;
  const bw=P.boostT>0?1.7:1;
  const wx=(-P.vx*0.05-34)*bw,wy=26-(bw-1)*24;
@@ -889,7 +890,8 @@ function stepCam(dt){
  if(G.st===1&&P.x>16900)tz*=0.88;
  if(G.st===4)tz*=0.92;
  CAM.z+=(tz-CAM.z)*Math.min(1,dt*2.2);
- const tx=P.x+P.vx*0.45+130;
+ const sA=(H/840)*CAM.z;
+ const tx=P.x+Math.min(P.vx*0.45+130,(W*0.24)/Math.max(0.2,sA));
  let ty=P.y-56;
  ty=Math.min(ty,groundY(P.x+220)-40);
  CAM.x+=(tx-CAM.x)*Math.min(1,dt*5);
@@ -1272,6 +1274,7 @@ function drawGate(sx,sy,s){
  CX.restore();
 }
 const RBX=new Float32Array(SCN*2),RBY=new Float32Array(SCN*2);
+const OUTC='#4a2a18';
 function drawShemaghTrail(s,ox,oy){
  /* tapered cloth ribbon through the simulated points: white base + red check */
  const n=SCN;
@@ -1281,7 +1284,7 @@ function drawShemaghTrail(s,ox,oy){
   if(i<n-1){dx=SCX[i+1]-SCX[i];dy=SCY[i+1]-SCY[i];}
   else{dx=SCX[i]-SCX[i-1];dy=SCY[i]-SCY[i-1];}
   const l=Math.sqrt(dx*dx+dy*dy)||1;
-  const w=((n-i)/n*4.6+0.9)*s;
+  const w=((n-i)/n*5+1)*s;
   const nx=-dy/l*w,ny=dx/l*w;
   RBX[i]=px+nx;RBY[i]=py+ny;
   RBX[2*n-1-i]=px-nx;RBY[2*n-1-i]=py-ny;
@@ -1289,15 +1292,49 @@ function drawShemaghTrail(s,ox,oy){
  CX.beginPath();CX.moveTo(RBX[0],RBY[0]);
  for(let i=1;i<2*n;i++)CX.lineTo(RBX[i],RBY[i]);
  CX.closePath();
- CX.fillStyle='#f7f3ea';CX.fill();
+ CX.fillStyle='#faf6ee';CX.fill();
  if(SCPAT){
   CX.save();CX.clip();
-  CX.globalAlpha=0.8;CX.fillStyle=SCPAT;
+  CX.globalAlpha=0.9;CX.fillStyle=SCPAT;
   CX.translate(RBX[0],RBY[0]);           /* anchor the check to the rider */
   CX.fillRect(-300,-300,600,600);
   CX.restore();CX.globalAlpha=1;
  }
- CX.strokeStyle='rgba(170,52,38,0.45)';CX.lineWidth=1;CX.stroke();
+ CX.strokeStyle='rgba(74,42,24,0.65)';CX.lineWidth=1.2;CX.stroke();
+}
+/* outlined limb: dark underlay + colored overlay through a joint */
+function limb(ax,ay,jx,jy,bx,by,w,col){
+ CX.lineCap='round';CX.lineJoin='round';
+ CX.strokeStyle=OUTC;CX.lineWidth=w+2.4;
+ CX.beginPath();CX.moveTo(ax,ay);CX.quadraticCurveTo(jx,jy,bx,by);CX.stroke();
+ CX.strokeStyle=col;CX.lineWidth=w;
+ CX.beginPath();CX.moveTo(ax,ay);CX.quadraticCurveTo(jx,jy,bx,by);CX.stroke();
+}
+function drawBoot(x,y,s,back){
+ /* chunky leather boot with sole + toe, outlined */
+ CX.save();CX.translate(x,y);
+ if(back)CX.scale(0.96,1);
+ CX.fillStyle='#8a5a2e';
+ CX.strokeStyle=OUTC;CX.lineWidth=1.5*s;
+ CX.beginPath();
+ CX.moveTo(-4.6*s,-7.5*s);
+ CX.lineTo(3.4*s,-7.5*s);
+ CX.quadraticCurveTo(4.6*s,-7.5*s,5*s,-5.5*s);
+ CX.quadraticCurveTo(6.6*s,-4.9*s,6.6*s,-3*s);
+ CX.lineTo(6.6*s,-1.6*s);
+ CX.lineTo(-4.6*s,-1.6*s);
+ CX.closePath();CX.fill();CX.stroke();
+ /* sole */
+ CX.fillStyle='#54341a';
+ CX.beginPath();
+ CX.moveTo(-4.9*s,-2.2*s);CX.lineTo(6.9*s,-2.2*s);CX.lineTo(6.9*s,-0.4*s);CX.lineTo(-4.9*s,-0.4*s);
+ CX.closePath();CX.fill();
+ CX.strokeStyle=OUTC;CX.lineWidth=1.1*s;CX.stroke();
+ /* lace highlight */
+ CX.strokeStyle='rgba(255,226,180,0.7)';CX.lineWidth=0.9*s;
+ CX.beginPath();CX.moveTo(-2.6*s,-6.2*s);CX.lineTo(1.6*s,-6.2*s);CX.stroke();
+ CX.beginPath();CX.moveTo(-2.6*s,-4.7*s);CX.lineTo(2*s,-4.7*s);CX.stroke();
+ CX.restore();
 }
 function drawPlayer(){
  const s=RVIEW.s,ox=RVIEW.ox,oy=RVIEW.oy;
@@ -1306,20 +1343,20 @@ function drawPlayer(){
  const gy=groundY(P.x),hgt=clamp(1-(gy-P.y)/220,0.25,1);
  CX.fillStyle='rgba(60,30,20,'+(0.28*hgt)+')';
  CX.beginPath();CX.ellipse(sx,gy*s+oy+3*s,26*s*hgt,5*s*hgt,Math.atan(groundSlope(P.x)),0,TAU);CX.fill();
- /* flying shemagh tail (behind the body) */
+ /* flying shemagh tail (behind everything) */
  drawShemaghTrail(s,ox,oy);
  CX.save();CX.translate(sx,sy);
  const wob=P.stumble>0?Math.sin(G.time*30)*0.16:0;
  CX.rotate(P.rot+wob);
- const crouch=P.carveQ,lean=IN.lean;
+ const crouch=P.carveQ,lean=IN.lean,boost=P.boostT>0;
  /* boost aura hugging the rider + board wake */
- if(P.boostT>0){
+ if(boost){
   CX.globalCompositeOperation='lighter';
-  CX.drawImage(SPR.glow,-46*s,-34*s,92*s,68*s);
-  CX.drawImage(SPR.glow,-70*s,-18*s,52*s,28*s);
+  CX.drawImage(SPR.glow,-48*s,-38*s,96*s,76*s);
+  CX.drawImage(SPR.glow,-72*s,-18*s,54*s,30*s);
   CX.globalCompositeOperation='source-over';
  }
- /* board */
+ /* board (outlined) */
  CX.fillStyle='#efe0bd';
  CX.beginPath();
  CX.moveTo(-26*s,-2*s);
@@ -1329,87 +1366,147 @@ function drawPlayer(){
  CX.quadraticCurveTo(14*s,2.5*s,0,2.5*s);
  CX.quadraticCurveTo(-14*s,2.5*s,-26*s,-2*s);
  CX.closePath();CX.fill();
+ CX.strokeStyle=OUTC;CX.lineWidth=1.4*s;CX.stroke();
  CX.fillStyle='#b3453a';CX.fillRect(-16*s,-7*s,32*s,2.4*s);
- /* leather boots planted on the deck */
- CX.fillStyle='#82552a';
- rr(-13.5*s,-14*s,9.4*s,6.6*s,2.2*s);CX.fill();
- rr(4.2*s,-14*s,9.4*s,6.6*s,2.2*s);CX.fill();
- CX.fillStyle='#553517';
- CX.fillRect(-13.5*s,-9*s,9.4*s,1.7*s);
- CX.fillRect(4.2*s,-9*s,9.4*s,1.7*s);
- CX.fillStyle='rgba(255,224,170,0.35)';
- CX.fillRect(-12*s,-13.2*s,2.2*s,1.2*s);CX.fillRect(5.8*s,-13.2*s,2.2*s,1.2*s);
- /* white sirwal legs */
- const hipY=-21*s+crouch*5*s;
- CX.strokeStyle='#efe9db';CX.lineWidth=4.6*s;CX.lineCap='round';
- CX.beginPath();
- CX.moveTo(-8.5*s,-13*s);CX.lineTo(-2.5*s,hipY);
- CX.moveTo(8.5*s,-13*s);CX.lineTo(2.5*s,hipY);
- CX.stroke();
- /* thobe: white robe with a wind-blown back hem */
- const chX=lean*6*s,chY=-34*s+crouch*8*s;
+ /* --- riding pose: bent knees, front + back foot --- */
+ const hipX=-1*s,hipY=(-20+crouch*4)*s;
+ const chX=(2+lean*4)*s,chY=(-33+crouch*7)*s;
+ const hx=chX+(2+lean*2)*s,hy=chY-11.5*s,hr=7.8*s;
+ /* back arm (behind the robe), swept back for balance */
+ limb(chX-2*s,chY+3*s, chX-9*s,chY+7*s, chX-15*s,chY+(11-lean*3)*s, 4*s,'#faf6ee');
+ CX.fillStyle='#eab389';CX.strokeStyle=OUTC;CX.lineWidth=1.1*s;
+ CX.beginPath();CX.arc(chX-15*s,chY+(11-lean*3)*s,2.5*s,0,TAU);CX.fill();CX.stroke();
+ /* legs: white sirwal, knees bent */
+ limb(hipX-1*s,hipY, -9.5*s,(-14+crouch*2)*s, -10.5*s,-8.6*s, 5*s,'#f2ecdf');   /* back leg */
+ limb(hipX+2*s,hipY, 9.5*s,(-13.5+crouch*2)*s, 8.6*s,-8.6*s, 5*s,'#faf6ee');    /* front leg */
+ /* boots planted on the deck */
+ drawBoot(-10.5*s,-7.4*s,s,true);
+ drawBoot(9*s,-7.4*s,s,false);
+ /* thobe: white robe, wind-blown back hem, soft folds + shade */
  const fl=(Math.sin(G.time*9)*1.6+Math.min(6,Math.abs(P.vx)*0.006))*s;
- CX.fillStyle='#f7f3ea';
+ CX.fillStyle='#faf6ee';
  CX.beginPath();
- CX.moveTo(chX-6.5*s,chY+1*s);
- CX.quadraticCurveTo(chX-10*s,chY+9*s,-15*s-fl,-9.5*s);
- CX.quadraticCurveTo(-2*s,-6*s,8.5*s,-10.5*s);
- CX.quadraticCurveTo(chX+8*s,chY+9*s,chX+6.5*s,chY+1*s);
- CX.quadraticCurveTo(chX,chY-3.5*s,chX-6.5*s,chY+1*s);
+ CX.moveTo(chX-6.8*s,chY+0.5*s);
+ CX.quadraticCurveTo(chX-11*s,chY+9*s,-17*s-fl,(-11.5)*s);
+ CX.quadraticCurveTo(-15*s-fl,(-8.5)*s,-11*s-fl,(-9)*s);
+ CX.quadraticCurveTo(-2*s,-7.5*s,9*s,-11.5*s);
+ CX.quadraticCurveTo(chX+9*s,chY+10*s,chX+7*s,chY+0.5*s);
+ CX.quadraticCurveTo(chX,chY-4*s,chX-6.8*s,chY+0.5*s);
+ CX.closePath();
+ CX.fill();
+ CX.strokeStyle=OUTC;CX.lineWidth=1.4*s;CX.stroke();
+ /* soft shade along the lower back of the robe */
+ CX.save();CX.clip();
+ CX.fillStyle='rgba(205,185,155,0.4)';
+ CX.beginPath();
+ CX.moveTo(-17*s-fl,-11.5*s);
+ CX.quadraticCurveTo(-4*s,-6*s,9*s,-11.5*s);
+ CX.quadraticCurveTo(0,-11*s,-8*s,-13.5*s);
+ CX.quadraticCurveTo(-13*s,-12.5*s,-17*s-fl,-11.5*s);
  CX.closePath();CX.fill();
- CX.strokeStyle='rgba(150,120,90,0.35)';CX.lineWidth=1.2*s;
- CX.beginPath();
- CX.moveTo(-15*s-fl,-9.5*s);CX.quadraticCurveTo(-2*s,-6*s,8.5*s,-10.5*s);
- CX.stroke();
- /* collar + tiny gold palm emblem */
- CX.strokeStyle='rgba(170,150,120,0.5)';CX.lineWidth=1*s;
- CX.beginPath();CX.moveTo(chX+1*s,chY-1*s);CX.lineTo(chX+1.6*s,chY+6*s);CX.stroke();
+ /* fold lines */
+ CX.strokeStyle='rgba(160,130,100,0.5)';CX.lineWidth=0.9*s;
+ CX.beginPath();CX.moveTo(chX-1*s,chY+4*s);CX.quadraticCurveTo(chX-4*s,chY+12*s,-9*s,-10.5*s);CX.stroke();
+ CX.beginPath();CX.moveTo(chX+2.5*s,chY+5*s);CX.quadraticCurveTo(chX+2*s,chY+13*s,1*s,-9*s);CX.stroke();
+ CX.restore();
+ /* collar + gold palm emblem */
+ CX.strokeStyle='rgba(150,125,95,0.65)';CX.lineWidth=1*s;
+ CX.beginPath();CX.moveTo(chX+0.5*s,chY-1.5*s);CX.lineTo(chX+1.4*s,chY+5.5*s);CX.stroke();
  CX.fillStyle='#c9992e';
- CX.beginPath();CX.arc(chX+3.4*s,chY+5.2*s,1.25*s,0,TAU);CX.fill();
- /* sleeves: back arm trails, front arm punches up on boost */
- CX.strokeStyle='#f7f3ea';CX.lineWidth=4*s;
- CX.beginPath();CX.moveTo(chX-2*s,chY+3*s);CX.lineTo(chX-14*s,chY+9*s-lean*4*s);CX.stroke();
- const fhx=P.boostT>0?chX+11*s:chX+13*s;
- const fhy=P.boostT>0?chY-9*s:chY+3*s+lean*5*s;
- CX.beginPath();CX.moveTo(chX+2*s,chY+3*s);CX.lineTo(fhx,fhy);CX.stroke();
- CX.fillStyle='#eab389';
- CX.beginPath();CX.arc(chX-14*s,chY+9*s-lean*4*s,2*s,0,TAU);CX.fill();
- CX.beginPath();CX.arc(fhx,fhy,2.1*s,0,TAU);CX.fill();
- /* head: shemagh over the hair, agal, cheerful face */
- const hx=chX+lean*3*s,hy=chY-9.5*s;
- CX.fillStyle='#f7f3ea';
- CX.beginPath();CX.arc(hx,hy,6.2*s,0,TAU);CX.fill();
+ CX.beginPath();CX.arc(chX+3.6*s,chY+4.6*s,1.3*s,0,TAU);CX.fill();
+ CX.strokeStyle=OUTC;CX.lineWidth=0.6*s;CX.stroke();
+ /* front arm: forward for balance, fist up on boost */
+ const fhx=boost?chX+10*s:chX+13.5*s;
+ const fhy=boost?chY-15*s:chY+(-2+lean*4)*s;
+ limb(chX+3*s,chY+3*s, chX+9*s,boost?chY-6*s:chY+1*s, fhx,fhy, 4*s,'#faf6ee');
+ CX.fillStyle='#eab389';CX.strokeStyle=OUTC;CX.lineWidth=1.1*s;
+ CX.beginPath();CX.arc(fhx,fhy,boost?2.9*s:2.5*s,0,TAU);CX.fill();CX.stroke();
+ /* ---- head (big, cartoon) ---- */
+ /* cache the shemagh-tail anchor (back of head) in world coords, rotation-aware */
+ {const axl=hx-hr*0.6,ayl=hy+hr*0.3,ca=Math.cos(P.rot),sa=Math.sin(P.rot);
+  P.anchX=P.x+(ca*axl-sa*ayl)/s;P.anchY=P.y+(sa*axl+ca*ayl)/s;}
+ /* neck */
+ CX.strokeStyle=OUTC;CX.lineWidth=4.6*s;
+ CX.beginPath();CX.moveTo(hx-1*s,hy+hr*0.75);CX.lineTo(chX+1*s,chY+1*s);CX.stroke();
+ CX.strokeStyle='#f2c096';CX.lineWidth=3*s;
+ CX.beginPath();CX.moveTo(hx-1*s,hy+hr*0.75);CX.lineTo(chX+1*s,chY+1*s);CX.stroke();
+ /* shemagh side drape joining the flying tail */
+ CX.fillStyle='#faf6ee';
+ CX.beginPath();
+ CX.moveTo(hx-hr*0.45,hy-hr*0.6);
+ CX.quadraticCurveTo(hx-hr*1.7,hy+hr*0.1,hx-hr*1.45,hy+hr*1.3);
+ CX.quadraticCurveTo(hx-hr*0.55,hy+hr*1.1,hx-hr*0.1,hy+hr*0.8);
+ CX.closePath();
+ CX.fill();
  if(SCPAT){
-  CX.save();
-  CX.beginPath();CX.arc(hx,hy,6.2*s,0,TAU);CX.clip();
-  CX.globalAlpha=0.55;CX.fillStyle=SCPAT;
-  CX.translate(hx,hy);CX.fillRect(-8*s,-8*s,16*s,16*s);
+  CX.save();CX.clip();CX.globalAlpha=0.9;CX.fillStyle=SCPAT;
+  CX.translate(hx,hy);CX.fillRect(-hr*2,-hr*2,hr*4,hr*4);
   CX.restore();CX.globalAlpha=1;
  }
- /* face opening toward travel direction */
- CX.fillStyle='#eab389';
- CX.beginPath();CX.arc(hx+1.7*s,hy+1.2*s,4.15*s,0,TAU);CX.fill();
- /* agal: double black cord */
- CX.strokeStyle='#1c1618';CX.lineWidth=1.9*s;
- CX.beginPath();CX.ellipse(hx-0.5*s,hy-3.6*s,4.9*s,2.1*s,-0.22,0,TAU);CX.stroke();
- CX.lineWidth=1*s;
- CX.beginPath();CX.ellipse(hx-0.5*s,hy-4.9*s,4.1*s,1.5*s,-0.22,0,TAU);CX.stroke();
- /* eyes + brows */
- CX.fillStyle='#2a1c14';
- CX.beginPath();CX.arc(hx+2.1*s,hy+0.4*s,0.72*s,0,TAU);CX.fill();
- CX.beginPath();CX.arc(hx+4.5*s,hy+0.3*s,0.72*s,0,TAU);CX.fill();
- CX.strokeStyle='#241812';CX.lineWidth=0.8*s;CX.lineCap='round';
- CX.beginPath();CX.moveTo(hx+1.2*s,hy-1.1*s);CX.lineTo(hx+3*s,hy-1.4*s);CX.stroke();
- CX.beginPath();CX.moveTo(hx+3.8*s,hy-1.5*s);CX.lineTo(hx+5.4*s,hy-1.1*s);CX.stroke();
- /* mustache + smile */
- CX.strokeStyle='#2e2019';CX.lineWidth=1.15*s;
- CX.beginPath();CX.moveTo(hx+3.3*s,hy+2.2*s);CX.quadraticCurveTo(hx+1.9*s,hy+1.9*s,hx+1.2*s,hy+2.6*s);CX.stroke();
- CX.beginPath();CX.moveTo(hx+3.5*s,hy+2.2*s);CX.quadraticCurveTo(hx+4.9*s,hy+1.9*s,hx+5.5*s,hy+2.6*s);CX.stroke();
- CX.strokeStyle='rgba(90,40,30,0.85)';CX.lineWidth=0.7*s;
- CX.beginPath();CX.arc(hx+3.4*s,hy+2.7*s,1.3*s,0.35,Math.PI-0.5);CX.stroke();
- /* soft rim light on the robe */
- CX.strokeStyle='rgba(255,224,170,0.4)';CX.lineWidth=1.3*s;
- CX.beginPath();CX.moveTo(chX+6*s,chY+2*s);CX.quadraticCurveTo(chX+7.5*s,chY+8*s,8*s,-11*s);CX.stroke();
+ CX.strokeStyle=OUTC;CX.lineWidth=1.2*s;CX.stroke();
+ /* head: white shemagh with bold red check */
+ CX.fillStyle='#faf6ee';
+ CX.beginPath();CX.arc(hx,hy,hr,0,TAU);CX.fill();
+ if(SCPAT){
+  CX.save();
+  CX.beginPath();CX.arc(hx,hy,hr,0,TAU);CX.clip();
+  CX.globalAlpha=0.95;CX.fillStyle=SCPAT;
+  CX.translate(hx,hy);CX.fillRect(-hr-2,-hr-2,hr*2+4,hr*2+4);
+  CX.restore();CX.globalAlpha=1;
+ }
+ CX.strokeStyle=OUTC;CX.lineWidth=1.5*s;
+ CX.beginPath();CX.arc(hx,hy,hr,0,TAU);CX.stroke();
+ /* face opening: bright skin framed by a white cloth rim */
+ const fx=hx+hr*0.34,fy=hy+hr*0.2,frx=hr*0.6,fry=hr*0.57;
+ CX.fillStyle='#faf6ee';
+ CX.beginPath();CX.ellipse(fx,fy,frx+1.6*s,fry+1.6*s,0.08,0,TAU);CX.fill();
+ CX.fillStyle='#f2c096';
+ CX.beginPath();CX.ellipse(fx,fy,frx,fry,0.08,0,TAU);CX.fill();
+ CX.strokeStyle='rgba(74,42,24,0.55)';CX.lineWidth=0.9*s;CX.stroke();
+ /* agal: bold black band across the top only, with a side knot */
+ CX.strokeStyle='#14100f';CX.lineCap='round';
+ CX.lineWidth=3.2*s;
+ CX.beginPath();CX.ellipse(hx-hr*0.05,hy-hr*0.58,hr*0.82,hr*0.34,-0.18,Math.PI*1.02,Math.PI*2.06);CX.stroke();
+ CX.lineWidth=2*s;
+ CX.beginPath();CX.ellipse(hx-hr*0.05,hy-hr*0.82,hr*0.66,hr*0.24,-0.18,Math.PI*1.05,Math.PI*2.02);CX.stroke();
+ CX.fillStyle='#14100f';
+ CX.beginPath();CX.arc(hx-hr*0.78,hy-hr*0.5,hr*0.14,0,TAU);CX.fill();
+ /* eyes: big, white, with pupils + glints */
+ const exL=fx-frx*0.34,exR=fx+frx*0.42,ey=fy-fry*0.12;
+ CX.fillStyle='#ffffff';CX.strokeStyle='rgba(74,42,24,0.8)';CX.lineWidth=0.9*s;
+ CX.beginPath();CX.ellipse(exL,ey,hr*0.24,hr*0.3,0,0,TAU);CX.fill();CX.stroke();
+ CX.beginPath();CX.ellipse(exR,ey,hr*0.24,hr*0.3,0,0,TAU);CX.fill();CX.stroke();
+ CX.fillStyle='#3a2416';
+ CX.beginPath();CX.arc(exL+hr*0.07,ey+hr*0.03,hr*0.125,0,TAU);CX.fill();
+ CX.beginPath();CX.arc(exR+hr*0.07,ey+hr*0.03,hr*0.125,0,TAU);CX.fill();
+ CX.fillStyle='#fff';
+ CX.beginPath();CX.arc(exL+hr*0.03,ey-hr*0.04,hr*0.05,0,TAU);CX.fill();
+ CX.beginPath();CX.arc(exR+hr*0.03,ey-hr*0.04,hr*0.05,0,TAU);CX.fill();
+ /* brows */
+ CX.strokeStyle='#241812';CX.lineWidth=1.6*s;CX.lineCap='round';
+ CX.beginPath();CX.moveTo(exL-hr*0.2,ey-hr*0.42);CX.quadraticCurveTo(exL,ey-hr*0.54,exL+hr*0.2,ey-hr*0.44);CX.stroke();
+ CX.beginPath();CX.moveTo(exR-hr*0.2,ey-hr*0.44);CX.quadraticCurveTo(exR,ey-hr*0.54,exR+hr*0.2,ey-hr*0.42);CX.stroke();
+ /* nose */
+ CX.fillStyle='#e3a172';
+ CX.beginPath();CX.arc(fx+frx*0.08,fy+fry*0.22,hr*0.11,0,TAU);CX.fill();
+ /* bold mustache */
+ CX.fillStyle='#241812';
+ CX.beginPath();
+ CX.moveTo(fx+frx*0.06,fy+fry*0.42);
+ CX.quadraticCurveTo(fx-frx*0.3,fy+fry*0.28,fx-frx*0.52,fy+fry*0.52);
+ CX.quadraticCurveTo(fx-frx*0.26,fy+fry*0.62,fx+frx*0.06,fy+fry*0.5);
+ CX.closePath();CX.fill();
+ CX.beginPath();
+ CX.moveTo(fx+frx*0.14,fy+fry*0.42);
+ CX.quadraticCurveTo(fx+frx*0.5,fy+fry*0.28,fx+frx*0.72,fy+fry*0.52);
+ CX.quadraticCurveTo(fx+frx*0.46,fy+fry*0.62,fx+frx*0.14,fy+fry*0.5);
+ CX.closePath();CX.fill();
+ /* open smile */
+ CX.fillStyle='#7a3526';
+ CX.beginPath();CX.arc(fx+frx*0.1,fy+fry*0.62,hr*0.17,0.2,Math.PI-0.2);CX.closePath();CX.fill();
+ CX.fillStyle='#fff';
+ CX.fillRect(fx-frx*0.08,fy+fry*0.6,hr*0.26,hr*0.05);
+
  CX.restore();
 }
 function drawParts(){
